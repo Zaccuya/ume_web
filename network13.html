@@ -1,0 +1,350 @@
+
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>クラウド・VPN・QoS 小テスト</title>
+<style>
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,"Yu Gothic",sans-serif;
+  background:#f4f7fb;
+  color:#111;
+}
+header{
+  background:#003366;
+  color:white;
+  padding:18px;
+}
+main{
+  max-width:900px;
+  margin:20px auto;
+  background:white;
+  padding:20px;
+  border-radius:14px;
+  box-shadow:0 4px 12px rgba(0,0,0,.08);
+}
+h1{font-size:22px;margin:0;}
+.question-title{font-size:20px;font-weight:bold;margin-bottom:12px;}
+.question-text{font-size:18px;line-height:1.7;}
+.choice{
+  display:block;
+  width:100%;
+  margin:10px 0;
+  padding:14px;
+  font-size:16px;
+  text-align:left;
+  border:1px solid #ccc;
+  border-radius:10px;
+  background:#f8fbff;
+  cursor:pointer;
+}
+.choice:hover{background:#eaf3ff;}
+.correct{background:#dff3e4!important;border-color:#2e7d32;}
+.wrong{background:#fde2e2!important;border-color:#c62828;}
+#result,#explanation{
+  margin-top:16px;
+  padding:14px;
+  border-radius:10px;
+  display:none;
+}
+#result{font-weight:bold;}
+#explanation{background:#f1f5f9;line-height:1.7;}
+.progress{
+  background:#ddd;
+  height:14px;
+  border-radius:999px;
+  overflow:hidden;
+  margin:16px 0;
+}
+#bar{
+  height:100%;
+  width:0%;
+  background:#003366;
+}
+button.nav{
+  margin-top:16px;
+  padding:12px 18px;
+  border:none;
+  border-radius:10px;
+  background:#003366;
+  color:white;
+  font-size:16px;
+  cursor:pointer;
+}
+.score{
+  font-size:22px;
+  font-weight:bold;
+}
+pre{
+  background:#eef3f8;
+  padding:12px;
+  border-radius:8px;
+  overflow:auto;
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>クラウド・VPN・QoS 小テスト</h1>
+</header>
+<main>
+  <div class="progress">
+    <div id="bar"></div>
+  </div>
+  <div id="quiz">
+    <div id="count"></div>
+    <div class="question-title" id="title"></div>
+    <div class="question-text" id="question"></div>
+    <div id="choices"></div>
+    <div id="result"></div>
+    <div id="explanation"></div>
+    <button class="nav" id="nextBtn" onclick="nextQuestion()" style="display:none;">次の問題へ</button>
+  </div>
+  <div id="finish" style="display:none;">
+    <p class="score" id="scoreText"></p>
+    <p id="rankText"></p>
+    <button class="nav" onclick="restart()">もう一度挑戦</button>
+  </div>
+</main>
+<script>
+const originalQuestions = [
+  {
+    title:"第1問：",
+    question:"クラウドサービスの説明として正しいものはどれですか。",
+    choices:[
+      "インターネット経由でサーバやサービスを利用する仕組み",
+      "会社の中に必ずサーバを設置する仕組み",
+      "USBメモリでデータを保存する仕組み",
+      "LANケーブルだけで通信する仕組み"
+    ],
+    answer:0,
+    explanation:"クラウドは、AWSやAzureなどの外部サービスをインターネット経由で利用する仕組みです。"
+  },
+  {
+    title:"第2問：",
+    question:"オンプレミスの説明として正しいものはどれですか。",
+    choices:[
+      "自社内にサーバやネットワーク機器を設置して管理する",
+      "すべてのサーバを海外に置く",
+      "クラウドだけを使う構成",
+      "スマートフォン専用の通信方式"
+    ],
+    answer:0,
+    explanation:"オンプレミスは、自社でサーバやネットワーク機器を所有・管理する形態です。"
+  },
+  {
+    title:"第3問：",
+    question:"オンプレミスとクラウドを組み合わせた構成を何と呼びますか。",
+    choices:[
+      "ハイブリッドクラウド",
+      "スタンドアロン",
+      "ピアツーピア",
+      "ローカルループ"
+    ],
+    answer:0,
+    explanation:"社内サーバとクラウドを組み合わせて利用する構成をハイブリッドクラウドと呼びます。"
+  },
+  {
+    title:"第4問：",
+    question:"Site-to-Site VPNの用途として最も適切なものはどれですか。",
+    choices:[
+      "拠点同士や会社とクラウドを安全に接続する",
+      "PCの画面を明るくする",
+      "IPアドレスを自動配布する",
+      "ファイル名を変更する"
+    ],
+    answer:0,
+    explanation:"Site-to-Site VPNは、本社と支店、会社とAWSなど、ネットワーク同士を安全に接続する技術です。"
+  },
+  {
+    title:"第5問：",
+    question:"Remote Access VPNの利用例として正しいものはどれですか。",
+    choices:[
+      "社員が自宅PCから会社ネットワークへ接続する",
+      "ルータ同士を常時接続する",
+      "プリンタの用紙を補充する",
+      "Webページの文字色を変える"
+    ],
+    answer:0,
+    explanation:"Remote Access VPNは、個人のPCやスマートフォンから会社ネットワークへ安全に接続する場合に使います。"
+  },
+  {
+    title:"第6問：",
+    question:"QoSの目的として正しいものはどれですか。",
+    choices:[
+      "重要な通信に優先順位を付ける",
+      "DNS名をIPアドレスに変換する",
+      "パスワードを保存する",
+      "ディスク容量を増やす"
+    ],
+    answer:0,
+    explanation:"QoSは、Web会議や音声通話など重要な通信を優先するための仕組みです。"
+  },
+  {
+    title:"第7問：",
+    question:"レイテンシの説明として正しいものはどれですか。",
+    choices:[
+      "通信が相手に届くまでの遅延時間",
+      "実際に流れた通信量",
+      "最大通信容量",
+      "失われたパケット数"
+    ],
+    answer:0,
+    explanation:"レイテンシは通信の遅延時間です。pingの応答時間で確認することがあります。"
+  },
+  {
+    title:"第8問：",
+    question:"Web会議で音声が途切れたり不安定になったりする原因として関係が深いものはどれですか。",
+    choices:[
+      "ジッタ",
+      "文字コード",
+      "ファイル拡張子",
+      "画面解像度"
+    ],
+    answer:0,
+    explanation:"ジッタは遅延時間のばらつきです。音声や映像通信では、ジッタが大きいと途切れやすくなります。"
+  },
+  {
+    title:"第9問：",
+    question:"パケットロスの説明として正しいものはどれですか。",
+    choices:[
+      "送信したデータの一部が途中で失われること",
+      "通信速度が必ず速くなること",
+      "IPアドレスが自動で増えること",
+      "クラウド料金が安くなること"
+    ],
+    answer:0,
+    explanation:"パケットロスは、送ったデータの一部が届かない状態です。回線混雑や機器不良などで発生します。"
+  },
+  {
+    title:"第10問：",
+    question:"1Gbps回線で実際には650Mbpsしか出ていない場合、650Mbpsを表す用語はどれですか。",
+    choices:[
+      "スループット",
+      "帯域",
+      "ジッタ",
+      "VPN"
+    ],
+    answer:0,
+    explanation:"帯域は最大通信容量、スループットは実際に流れた通信量です。"
+  }
+];
+let questions = [];
+let current = 0;
+let score = 0;
+let answered = false;
+function shuffle(array){
+  for(let i=array.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [array[i],array[j]]=[array[j],array[i]];
+  }
+  return array;
+}
+function prepareQuestions(){
+  questions = JSON.parse(JSON.stringify(originalQuestions));
+  questions = shuffle(questions);
+  questions.forEach(q=>{
+    const temp = q.choices.map((choice,index)=>({
+      text:choice,
+      correct:index === q.answer
+    }));
+    shuffle(temp);
+    q.choices = temp.map(item=>item.text);
+    q.answer = temp.findIndex(item=>item.correct);
+  });
+}
+function showQuestion(){
+  answered = false;
+  const q = questions[current];
+  document.getElementById("count").textContent =
+    `${current+1} / ${questions.length} 問目`;
+  document.getElementById("title").textContent = q.title;
+  document.getElementById("question").textContent = q.question;
+  const choicesDiv = document.getElementById("choices");
+  choicesDiv.innerHTML = "";
+  q.choices.forEach((choice,index)=>{
+    const btn = document.createElement("button");
+    btn.className = "choice";
+    btn.textContent = choice;
+    btn.onclick = () => checkAnswer(index, btn);
+    choicesDiv.appendChild(btn);
+  });
+  document.getElementById("result").style.display = "none";
+  document.getElementById("explanation").style.display = "none";
+  document.getElementById("nextBtn").style.display = "none";
+  updateBar();
+}
+function checkAnswer(index, btn){
+  if(answered) return;
+  answered = true;
+  const q = questions[current];
+  const result = document.getElementById("result");
+  const explanation = document.getElementById("explanation");
+  const buttons = document.querySelectorAll(".choice");
+  buttons.forEach((b,i)=>{
+    if(i === q.answer){
+      b.classList.add("correct");
+    }
+  });
+  if(index === q.answer){
+    score++;
+    result.textContent = "正解です。";
+    result.style.background = "#dff3e4";
+  }else{
+    btn.classList.add("wrong");
+    result.textContent = "不正解です。";
+    result.style.background = "#fde2e2";
+  }
+  explanation.textContent = q.explanation;
+  result.style.display = "block";
+  explanation.style.display = "block";
+  document.getElementById("nextBtn").style.display = "inline-block";
+}
+function nextQuestion(){
+  current++;
+  if(current < questions.length){
+    showQuestion();
+  }else{
+    finishQuiz();
+  }
+}
+function updateBar(){
+  const percent = (current / questions.length) * 100;
+  document.getElementById("bar").style.width = percent + "%";
+}
+function finishQuiz(){
+  document.getElementById("quiz").style.display = "none";
+  document.getElementById("finish").style.display = "block";
+  document.getElementById("bar").style.width = "100%";
+  const percent = Math.round((score / questions.length) * 100);
+  document.getElementById("scoreText").textContent =
+    `${questions.length}問中 ${score}問正解　正答率 ${percent}%`;
+  let rank = "";
+  if(percent >= 90){
+    rank = "★★★★★ ネットワーク管理者レベルです。";
+  }else if(percent >= 80){
+    rank = "★★★★☆ CCNA初級レベルです。";
+  }else if(percent >= 70){
+    rank = "★★★☆☆ ITパスポート合格圏です。";
+  }else if(percent >= 60){
+    rank = "★★☆☆☆ もう少し復習しましょう。";
+  }else{
+    rank = "★☆☆☆☆ 基礎から確認しましょう。";
+  }
+  document.getElementById("rankText").textContent = rank;
+}
+function restart(){
+  current = 0;
+  score = 0;
+  document.getElementById("quiz").style.display = "block";
+  document.getElementById("finish").style.display = "none";
+  prepareQuestions();
+  showQuestion();
+}
+prepareQuestions();
+showQuestion();
+</script>
+</body>
+</html>
